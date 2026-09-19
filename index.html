@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Frog Hop Arcade</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#030705;color:#eaffea;font-family:ui-monospace,Consolas,monospace}body{display:flex;justify-content:center;padding:18px}.wrap{width:min(100%,520px)}header{display:flex;justify-content:space-between;align-items:end;margin:0 4px 10px}.tag{font-size:10px;letter-spacing:.2em;color:#5ee75a}h1{margin:0;color:#a6ff45;font-size:38px;letter-spacing:-.07em}.card{position:relative;border:1px solid #294c39;border-radius:12px;overflow:hidden;background:#000;box-shadow:0 22px 70px #0009}canvas{width:100%;height:auto;display:block;image-rendering:pixelated;touch-action:none}.ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#010604c9;padding:24px}.ov.hide{display:none}.panel{text-align:center;background:#07120dec;border:1px solid #315b45;border-radius:12px;padding:22px;max-width:340px}.panel h2{margin:0 0 8px;color:#a6ff45;font-size:32px}.panel p{color:#bdd1c2;font-size:13px;line-height:1.45}.panel button,.mute{border:0;border-radius:8px;background:#9cff46;color:#082007;font-weight:900;padding:12px 18px;cursor:pointer}.mute{padding:10px;background:#11231a;color:white;border:1px solid #284936}.keys{font-size:10px;color:#789080;margin-top:10px}.pad{margin:14px auto 0;width:210px;display:grid;grid-template:46px 46px/70px 70px 70px;grid-template-areas:". u ." "l d r"}.pad button{background:#102019;color:#dfffe4;border:1px solid #2a4d3b;font-size:20px}.u{grid-area:u}.l{grid-area:l}.d{grid-area:d}.r{grid-area:r}footer{display:flex;justify-content:space-between;color:#587064;font-size:9px;margin-top:9px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><div><div class="tag">RETRO ARCADE</div><h1>FROG HOP</h1></div><button class="mute" id="mute">🔊</button></header>
+<div class="card"><canvas id="c" width="448" height="576"></canvas><div class="ov" id="ov"><div class="panel"><div class="tag">CLASSIC LANE-CROSSING CHALLENGE</div><h2 id="title">FROG HOP</h2><p id="msg">Cross traffic, ride logs and turtles, and fill all five homes before time runs out.</p><button id="start">START GAME</button><div class="keys">Arrow keys / WASD · P to pause</div></div></div></div>
+<div class="pad"><button class="u" data-d="u">▲</button><button class="l" data-d="l">◀</button><button class="d" data-d="d">▼</button><button class="r" data-d="r">▶</button></div>
+<footer><span>Original browser recreation with original artwork.</span><span>© 2026</span></footer>
+</div>
+<script>
+(()=>{'use strict';
+const c=document.getElementById('c'),x=c.getContext('2d'),ov=document.getElementById('ov'),title=document.getElementById('title'),msg=document.getElementById('msg'),start=document.getElementById('start'),mute=document.getElementById('mute');
+const W=448,H=576,S=32,HUD=64,HOME=[40,132,224,316,408];let hi=+(localStorage.frogHi||0),score=0,lives=3,level=1,time=30,state='ready',last=performance.now(),dead=0,homes=[0,0,0,0,0],frog={},objs=[],silent=false,audio;
+const lanes=[
+[1,1,42,'log',120,72],[2,-1,55,'turtle',82,56],[3,1,62,'log',145,78],[4,-1,48,'turtle',100,62],[5,1,70,'log',94,60],
+[9,-1,66,'car',52,94],[10,1,90,'car',50,116],[11,-1,76,'truck',78,112],[12,1,100,'car',54,96],[13,-1,118,'race',46,142]
+];
+function sound(f=440,d=.05){if(silent)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();let o=audio.createOscillator(),g=audio.createGain();o.type='square';o.frequency.value=f;g.gain.value=.025;o.connect(g);g.connect(audio.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+d);o.stop(audio.currentTime+d)}catch{}}
+function reset(){frog={x:211,y:483,w:26,h:26,row:15,high:15,alive:1};time=Math.max(18,30-(level-1)*1.2)}
+function build(){objs=[];lanes.forEach((l,li)=>{let [row,dir,sp,type,w,gap]=l,p=-140+(li*61)%150,i=0;while(p<W+180){objs.push({row,dir,sp,type,w,x:p,y:row*S+4,phase:i*.9+li});p+=w+gap;i++}})}
+function begin(){score=0;lives=3;level=1;homes=[0,0,0,0,0];build();reset();state='play';ov.classList.add('hide');sound(520,.06)}
+function show(t,m,b,fn){title.textContent=t;msg.textContent=m;start.textContent=b;start.onclick=fn;ov.classList.remove('hide')}
+function die(water=0){if(state!=='play'||!frog.alive)return;frog.alive=0;lives--;dead=.8;state='dead';sound(water?150:90,.18)}
+function nextDeath(){if(lives<1){state='over';hi=Math.max(hi,score);localStorage.frogHi=hi;show('GAME OVER',`Score ${score} · High score ${hi}`,'PLAY AGAIN',begin)}else{reset();state='play'}}
+function nextLevel(){level++;score+=1000;homes=[0,0,0,0,0];build();reset();state='level';show('LEVEL '+level,'Traffic is faster now.','CONTINUE',()=>{state='play';ov.classList.add('hide');last=performance.now()});sound(850,.1)}
+function hop(dx,dy){if(state!=='play')return;let old=frog.row;frog.x=Math.max(2,Math.min(W-frog.w-2,frog.x+dx*S));frog.row=Math.max(0,Math.min(15,frog.row+dy));frog.y=frog.row*S+3;if(frog.row<old&&frog.row<frog.high){frog.high=frog.row;score+=10}sound(320+(15-frog.row)*8,.025);if(frog.row===0)home()}
+function home(){let cx=frog.x+13,b=-1,d=1e9;HOME.forEach((h,i)=>{let q=Math.abs(cx-h);if(q<d){d=q;b=i}});if(d<25&&!homes[b]){homes[b]=1;score+=50+Math.floor(time*10);sound(900,.08);if(homes.every(Boolean))nextLevel();else reset()}else die()}
+function hit(a,b,p=3){return a.x+p<b.x+b.w&&a.x+a.w-p>b.x&&a.y+p<b.y+24&&a.y+a.h-p>b.y}
+function update(dt,now){if(state==='dead'){dead-=dt;if(dead<=0)nextDeath();return}if(state!=='play')return;time-=dt;if(time<=0){time=0;die();return}let scale=1+(level-1)*.12;objs.forEach(o=>{o.x+=o.sp*o.dir*scale*dt;if(o.dir>0&&o.x>W+80)o.x=-o.w-100;if(o.dir<0&&o.x+o.w<-80)o.x=W+100});if(frog.row>=9&&frog.row<=13&&objs.some(o=>o.row===frog.row&&hit(frog,o)))return die();if(frog.row>=1&&frog.row<=5){let on=objs.find(o=>o.row===frog.row&&hit(frog,o)&&!(o.type==='turtle'&&((now/1000+o.phase)%5.2)>4));if(!on)return die(1);frog.x+=on.sp*on.dir*scale*dt;if(frog.x<-10||frog.x>W-16)die(1)}}
+function rr(a,b,w,h,r){x.beginPath();x.roundRect(a,b,w,h,r);x.fill()}
+function board(now){x.save();x.translate(0,HUD);x.fillStyle='#174c25';x.fillRect(0,0,W,S);x.fillStyle='#083452';x.fillRect(0,S,W,5*S);x.strokeStyle='#3a7b9655';for(let r=1;r<6;r++)for(let q=-60;q<W+60;q+=90){x.beginPath();x.moveTo(q+((now*.015*(r%2?1:-1))%90),r*S+23);x.lineTo(q+22+((now*.015*(r%2?1:-1))%90),r*S+23);x.stroke()}x.fillStyle='#163d23';x.fillRect(0,6*S,W,3*S);x.fillStyle='#171b1a';x.fillRect(0,9*S,W,5*S);x.strokeStyle='#6f797155';x.setLineDash([18,18]);for(let r=10;r<=13;r++){x.beginPath();x.moveTo(0,r*S);x.lineTo(W,r*S);x.stroke()}x.setLineDash([]);x.fillStyle='#154a24';x.fillRect(0,14*S,W,2*S);
+HOME.forEach((h,i)=>{x.fillStyle=homes[i]?'#7df53f':'#091e13';x.beginPath();x.arc(h,16,17,0,Math.PI*2);x.fill();x.strokeStyle='#68a955';x.stroke()});
+objs.forEach(o=>{if(o.type==='log'){x.fillStyle='#8d5129';rr(o.x,o.y,o.w,24,11);x.fillStyle='#4e2615';x.fillRect(o.x+10,o.y+5,4,14);x.fillRect(o.x+o.w-14,o.y+5,4,14)}else if(o.type==='turtle'){let n=Math.max(2,Math.round(o.w/27)),hide=((now/1000+o.phase)%5.2)>4;for(let i=0;i<n;i++){let cx=o.x+(i+.5)*o.w/n;x.fillStyle=hide?'#15566a':'#4fb8aa';x.beginPath();x.arc(cx,o.y+12,11,0,Math.PI*2);x.fill();x.strokeStyle='#163f43';x.stroke()}}else{let col=o.type==='truck'?'#43d6db':o.type==='race'?'#5379e8':o.row%2?'#f3de4d':'#ff7048';x.fillStyle=col;rr(o.x,o.y,o.w,24,5);x.fillStyle='#0b1714';x.fillRect(o.x+8,o.y+4,Math.max(8,o.w-20),7);x.fillStyle='#050505';x.fillRect(o.x+6,o.y-2,10,5);x.fillRect(o.x+o.w-16,o.y-2,10,5);x.fillRect(o.x+6,o.y+21,10,5);x.fillRect(o.x+o.w-16,o.y+21,10,5)}});
+if(frog.alive){let cx=frog.x+13,cy=frog.y+13;x.fillStyle='#7df53f';x.beginPath();x.ellipse(cx,cy,10,12,0,0,Math.PI*2);x.fill();x.beginPath();x.arc(cx-7,cy-7,5,0,Math.PI*2);x.arc(cx+7,cy-7,5,0,Math.PI*2);x.fill();x.fillStyle='#07120b';x.beginPath();x.arc(cx-7,cy-8,2,0,Math.PI*2);x.arc(cx+7,cy-8,2,0,Math.PI*2);x.fill()}
+x.restore()}
+function hud(){x.fillStyle='#07110d';x.fillRect(0,0,W,HUD);x.font='700 11px monospace';x.fillStyle='#789080';x.fillText('1-UP',16,16);x.fillText('HI-SCORE',168,16);x.fillText('LEVEL',350,16);x.font='800 20px monospace';x.fillStyle='#f2fff3';x.fillText(String(score).padStart(5,'0'),16,39);x.fillText(String(hi).padStart(5,'0'),168,39);x.fillText(String(level).padStart(2,'0'),371,39);for(let i=0;i<lives;i++){x.fillStyle='#7df53f';x.beginPath();x.arc(18+i*18,54,5,0,7);x.fill()}x.fillStyle='#163324';x.fillRect(275,51,158,7);x.fillStyle=time<8?'#e84545':'#a6ff45';x.fillRect(275,51,158*Math.max(0,time/Math.max(18,30-(level-1)*1.2)),7)}
+function draw(now){x.clearRect(0,0,W,H);board(now);hud();x.fillStyle='#0002';for(let y=0;y<H;y+=4)x.fillRect(0,y,W,1)}
+function dir(d){({u:()=>hop(0,-1),d:()=>hop(0,1),l:()=>hop(-1,0),r:()=>hop(1,0)}[d]||(()=>{}))()}
+addEventListener('keydown',e=>{let k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d','p',' '].includes(k))e.preventDefault();if(k==='p'){if(state==='play'){state='pause';show('PAUSED','The road is waiting.','RESUME',()=>{state='play';ov.classList.add('hide');last=performance.now()})}return}if(state==='ready'&&(k===' '||k==='enter'))return begin();if(k==='arrowup'||k==='w')dir('u');if(k==='arrowdown'||k==='s')dir('d');if(k==='arrowleft'||k==='a')dir('l');if(k==='arrowright'||k==='d')dir('r')},{passive:false});
+document.querySelectorAll('[data-d]').forEach(b=>b.onpointerdown=e=>{e.preventDefault();dir(b.dataset.d)});let t=null;c.onpointerdown=e=>t=[e.clientX,e.clientY];c.onpointerup=e=>{if(!t)return;let dx=e.clientX-t[0],dy=e.clientY-t[1];t=null;if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;dir(Math.abs(dx)>Math.abs(dy)?(dx>0?'r':'l'):(dy>0?'d':'u'))};
+mute.onclick=()=>{silent=!silent;mute.textContent=silent?'🔇':'🔊'};start.onclick=begin;build();reset();function frame(n){let dt=Math.min(.033,(n-last)/1000||0);last=n;update(dt,n);draw(n);requestAnimationFrame(frame)}requestAnimationFrame(frame);
+})();
+</script></body></html>
